@@ -26,6 +26,7 @@ double randZeroOne()
 
 double exponentialDistValue(double lambda)
 {
+    //TODO:Why this?
     return log(1-randZeroOne())/((-1)*(lambda));
 }
 
@@ -106,7 +107,7 @@ struct node
     float coins;
     map<int,double> mapBlockidReceivetime;
     vector<block> blocks;
-    vector<transaction> unspentTransactions;
+    set<transaction> unspentTransactions;
 };
 
 struct event
@@ -184,11 +185,8 @@ void makePropDelayVec()
         for(int j=i+1;j<numberOfNodes;j++)
         {
             double tempDelay=10+490*randZeroOne();
-            if(randZeroOne()<nodeConnectivityProbability)
-            {
-                propDelay[i][j];
-                propDelay[j][i];
-            }
+            propDelay[i][j]=tempDelay/1000;
+            propDelay[j][i]=tempDelay/1000;
         }
     }
 }
@@ -211,12 +209,13 @@ void generateTransactionEvent(event e)
     {
         receipientId=randZeroOne()*numberOfNodes;
     }
+
     double transactionAmount=randZeroOne()*(NodesVec[senderId].coins);
     transaction newtrans(globalTransactionIdCounter,senderId,receipientId,transactionAmount);
     globalTransactionIdCounter+=1;
     NodesVec[senderId].coins-=transactionAmount;
     NodesVec[receipientId].coins+=transactionAmount;
-    NodesVec[senderId].unspentTransactions.push_back(newtrans);
+    NodesVec[senderId].unspentTransactions.insert(newtrans);
 
     event nextTransGen(1,e.scheduleTime+exponentialDistValue(NodesVec[senderId].lambdaForTransactionGeneration),e.scheduleTime,senderId,senderId,block(),transaction());
     eventsQueue.push(nextTransGen);
@@ -233,17 +232,18 @@ void generateTransactionEvent(event e)
 void receiveTransactionEvent(event e)
 {
     bool transactionAlreadyRecieved=false;
-    for(int i=0;i<NodesVec[e.currNode].unspentTransactions.size();i++)
+    for (auto curreTransaction:NodesVec[e.currNode].unspentTransactions )
     {
-        if(NodesVec[e.currNode].unspentTransactions[i].transactionId==e.currTransaction.transactionId)
+        if(curreTransaction.transactionId==e.currTransaction.transactionId)
         {
             transactionAlreadyRecieved=true;
             break;
         }
     }
+
     if(!transactionAlreadyRecieved)
     {
-        NodesVec[e.currNode].unspentTransactions.push_back(e.currTransaction);
+        NodesVec[e.currNode].unspentTransactions.insert(e.currTransaction);
         int senderId=e.currNode;
         for(int i=0;i<NodesVec[senderId].neighbourNodes.size();i++)
         {
@@ -294,14 +294,13 @@ void generateBlockEvent(event e)
 
         //add all unspent transactions to this block
 
-        for(int i=0;i< NodesVec[e.currNode].unspentTransactions.size() ;i++)
+        set<transaction> initialUnspentTransaction=NodesVec[e.currNode].unspentTransactions;
+        for(auto currrTrans:initialUnspentTransaction)
         {
-            transaction currrTrans=NodesVec[e.currNode].unspentTransactions[i];
-
             if(NodesVec[e.currNode].blocks[localIndexOfLongestLenBlock].transactionSet.find(currrTrans)
-                       !=NodesVec[e.currNode].blocks[localIndexOfLongestLenBlock].transactionSet.end())
+               !=NodesVec[e.currNode].blocks[localIndexOfLongestLenBlock].transactionSet.end())
             {
-                NodesVec[e.currNode].blocks[localIndexOfLongestLenBlock].transactionSet.erase(currrTrans);
+                NodesVec[e.currNode].unspentTransactions.erase(currrTrans);
             } else
             {
                 generatedBlock.transactionSet.insert(currrTrans);
@@ -309,6 +308,7 @@ void generateBlockEvent(event e)
         }
 
         //TODO: Add Mining Fee
+        NodesVec[e.currNode].coins+=50;
         //add block to my current node
         NodesVec[e.currNode].blocks.push_back(generatedBlock);
 
@@ -318,6 +318,7 @@ void generateBlockEvent(event e)
             int recieveNodeId=NodesVec[e.currNode].neighbourNodes[i];
             double latencyValue=calculateLatency(e.currNode,recieveNodeId,blockMValue);
             event recieveEvent(4,e.scheduleTime+latencyValue,e.scheduleTime,e.currNode,recieveNodeId,generatedBlock,transaction());
+            //DEBUG2(e.scheduleTime+latencyValue);
             eventsQueue.push(recieveEvent);
         }
 
@@ -338,6 +339,10 @@ void receiveBlockEvent(event e)
     if(!alreadyRecievedBlock)
     {
         double t_K=exponentialDistValue( NodesVec[e.currNode].lambdaForBlockGeneration );
+
+        //TODO:Trigger Block Gen Event
+        event genBlockT(3,e.scheduleTime+t_K,e.scheduleTime,e.currNode,e.currNode,block(),transaction());
+        eventsQueue.push(genBlockT);
 
         //find the len and blk id of the Node which is being referred here
         int longestLen=0;
@@ -363,6 +368,7 @@ void receiveBlockEvent(event e)
             {
                 double latencyValue= calculateLatency(e.currNode,destinNode,blockMValue);
                 event recBevent(4,e.scheduleTime+latencyValue,e.scheduleTime,e.currNode,destinNode,e.currBlock,transaction());
+                //DEBUG2(e.scheduleTime+latencyValue);
                 eventsQueue.push(recBevent);
 
             }
@@ -376,8 +382,14 @@ void timeLoop()
     while(globalCurrentTime<=totalTimeToSimulate)
     {
         DEBUG2(globalCurrentTime);
+        //for(int i=0;i<numberOfNodes;i++)
+        {
+            //DEBUG2(NodesVec[i].blocks.size());
+            //DEBUG2(NodesVec[i].unspentTransactions.size());
+        }
         DEBUG2(NodesVec[0].blocks.size());
         DEBUG2(NodesVec[0].unspentTransactions.size());
+
         event e=  eventsQueue.top();
         eventsQueue.pop();
         globalCurrentTime=e.scheduleTime;
@@ -479,12 +491,12 @@ void printNodesStructure()
 
 int main()
 {
-    totalTimeToSimulate=0.5;
+    totalTimeToSimulate=1000;
     numberOfNodes=10;
     z=60;
     initialMaxAmount=100;
-    globalLambdaForBlockGeneration=4000;
-    globalLambdaForTransactionGeneration=1000;
+    globalLambdaForBlockGeneration=0.1/(4*numberOfNodes);
+    globalLambdaForTransactionGeneration=(10/numberOfNodes);
     nodeConnectivityProbability=0.3;
     makePropDelayVec();
     makeNodes();
