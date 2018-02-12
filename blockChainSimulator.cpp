@@ -26,7 +26,7 @@ double randZeroOne()
 
 double exponentialDistValue(double lambda)
 {
-    //TODO:Why this?
+    //Explanation can be found from answer of Amit in link:https://stackoverflow.com/questions/11491458/how-to-generate-random-numbers-with-exponential-distribution-with-mean
     return log(1-randZeroOne())/((-1)*(lambda));
 }
 
