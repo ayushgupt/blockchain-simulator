@@ -63,6 +63,12 @@ struct transaction
         destinationNodeId=destinationNodeIdArg;
         coins=coinsArg;
     }
+    bool operator<(const transaction& rhs) const
+    {
+        //so that we get earliest scheduled at the top
+        return transactionId < rhs.transactionId;
+    }
+
 };
 
 struct block
@@ -212,14 +218,14 @@ void generateTransactionEvent(event e)
     NodesVec[receipientId].coins+=transactionAmount;
     NodesVec[senderId].unspentTransactions.push_back(newtrans);
 
-    event nextTransGen(1,e.scheduleTime+exponentialDistValue(NodesVec[senderId].lambdaForTransactionGeneration),e.scheduleTime,senderId,senderId,NULL,NULL);
+    event nextTransGen(1,e.scheduleTime+exponentialDistValue(NodesVec[senderId].lambdaForTransactionGeneration),e.scheduleTime,senderId,senderId,block(),transaction());
     eventsQueue.push(nextTransGen);
 
     for(int i=0;i< NodesVec[senderId].neighbourNodes.size();i++)
     {
         int recieverId=NodesVec[senderId].neighbourNodes[i];
         double latencyValue= calculateLatency(senderId,recieverId,transactionMValue);
-        event recEvent(2,e.scheduleTime+latencyValue,e.scheduleTime,senderId,recieverId,NULL,newtrans);
+        event recEvent(2,e.scheduleTime+latencyValue,e.scheduleTime,senderId,recieverId,block(),newtrans);
         eventsQueue.push(recEvent);
     }
 
@@ -243,7 +249,7 @@ void receiveTransactionEvent(event e)
         {
             int destinId=NodesVec[senderId].neighbourNodes[i];
             double latencyValue=calculateLatency(senderId,destinId,transactionMValue);
-            event recEvent(2,e.scheduleTime+latencyValue,e.scheduleTime,senderId,destinId,NULL,e.currTransaction);
+            event recEvent(2,e.scheduleTime+latencyValue,e.scheduleTime,senderId,destinId,block(),e.currTransaction);
             eventsQueue.push(recEvent);
         }
 
@@ -310,7 +316,7 @@ void generateBlockEvent(event e)
         {
             int recieveNodeId=NodesVec[e.currNode].neighbourNodes[i];
             double latencyValue=calculateLatency(e.currNode,recieveNodeId,blockMValue);
-            event recieveEvent(4,e.scheduleTime+latencyValue,e.scheduleTime,e.currNode,recieveNodeId,generatedBlock,NULL);
+            event recieveEvent(4,e.scheduleTime+latencyValue,e.scheduleTime,e.currNode,recieveNodeId,generatedBlock,transaction());
             eventsQueue.push(recieveEvent);
         }
 
@@ -355,7 +361,7 @@ void receiveBlockEvent(event e)
             if(destinNode!=e.senderNode)
             {
                 double latencyValue= calculateLatency(e.currNode,destinNode,blockMValue);
-                event recBevent(4,e.scheduleTime+latencyValue,e.scheduleTime,e.currNode,destinNode,e.currBlock,NULL);
+                event recBevent(4,e.scheduleTime+latencyValue,e.scheduleTime,e.currNode,destinNode,e.currBlock,transaction());
                 eventsQueue.push(recBevent);
 
             }
@@ -403,11 +409,11 @@ void triggerGenerationOfBlocksAndNodes()
     {
         //generate Block
         event genBlock(3,exponentialDistValue(NodesVec[i].lambdaForBlockGeneration),
-        0.0,NULL,i,NULL,NULL);
+        0.0,NULL,i,block(),transaction());
         eventsQueue.push(genBlock);
         //generate Transaction
         event genTransaction(1,exponentialDistValue(NodesVec[i].lambdaForTransactionGeneration),
-                       0.0,NULL,i,NULL,NULL);
+                       0.0,NULL,i,block(),transaction());
         eventsQueue.push(genTransaction);
     }
 }
