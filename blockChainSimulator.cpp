@@ -374,6 +374,7 @@ void timeLoop()
 {
     while(globalCurrentTime<=totalTimeToSimulate)
     {
+        DEBUG2(globalCurrentTime);
         event e=  eventsQueue.top();
         eventsQueue.pop();
         globalCurrentTime=e.scheduleTime;
@@ -420,7 +421,7 @@ void triggerGenerationOfBlocksAndNodes()
 
 int main()
 {
-    totalTimeToSimulate=10;
+    totalTimeToSimulate=0.2;
     numberOfNodes=10;
     z=60;
     initialMaxAmount=100;
