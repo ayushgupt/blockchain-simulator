@@ -112,7 +112,6 @@ struct node
 
 struct event
 {
-    //TODO: Use Enum
     int eventType;
     double scheduleTime;
     double createTime;
@@ -162,7 +161,6 @@ void makeNodes()
 
 void makeConnectedGraph()
 {
-    //TODO:check connectivity
     for(int i=0;i<numberOfNodes;i++)
     {
         for(int j=i+1;j<numberOfNodes;j++)
@@ -174,6 +172,38 @@ void makeConnectedGraph()
             }
         }
     }
+
+    int numConnectedNodes=0;
+    vector<bool> visited(numberOfNodes,false);
+    queue<int> bfsQ;
+    bfsQ.push(0);
+    visited[0]=true;
+    numConnectedNodes+=1;
+    while(!bfsQ.empty())
+    {
+        int currNode=bfsQ.front();
+        bfsQ.pop();
+        for(auto neighIndex: NodesVec[currNode].neighbourNodes)
+        {
+            if(!visited[neighIndex])
+            {
+                visited[neighIndex]=true;
+                numConnectedNodes+=1;
+                bfsQ.push(neighIndex);
+            }
+        }
+    }
+
+    if(numConnectedNodes!=numberOfNodes)
+    {
+        for(int i=0;i<numberOfNodes;i++)
+        {
+            NodesVec[i].neighbourNodes.clear();
+        }
+        makeConnectedGraph();
+    }
+
+
 }
 
 
@@ -340,7 +370,7 @@ void receiveBlockEvent(event e)
     {
         double t_K=exponentialDistValue( NodesVec[e.currNode].lambdaForBlockGeneration );
 
-        //TODO:Trigger Block Gen Event
+        //Trigger Block Gen Event
         event genBlockT(3,e.scheduleTime+t_K,e.scheduleTime,e.currNode,e.currNode,block(),transaction());
         eventsQueue.push(genBlockT);
 
@@ -497,7 +527,7 @@ int main()
     initialMaxAmount=100;
     globalLambdaForBlockGeneration=0.1/(4*numberOfNodes);
     globalLambdaForTransactionGeneration=(10/numberOfNodes);
-    nodeConnectivityProbability=0.3;
+    nodeConnectivityProbability=0.1;
     makePropDelayVec();
     makeNodes();
     makeConnectedGraph();
