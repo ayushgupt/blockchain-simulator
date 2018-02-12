@@ -308,6 +308,7 @@ void generateBlockEvent(event e)
             }
         }
 
+        //TODO: Add Mining Fee
         //add block to my current node
         NodesVec[e.currNode].blocks.push_back(generatedBlock);
 
@@ -375,6 +376,8 @@ void timeLoop()
     while(globalCurrentTime<=totalTimeToSimulate)
     {
         DEBUG2(globalCurrentTime);
+        DEBUG2(NodesVec[0].blocks.size());
+        DEBUG2(NodesVec[0].unspentTransactions.size());
         event e=  eventsQueue.top();
         eventsQueue.pop();
         globalCurrentTime=e.scheduleTime;
@@ -397,7 +400,7 @@ void timeLoop()
 }
 void addGenesisBlock()
 {
-    block genBlock(0,0.0,NULL,-1,1);
+    block genBlock(0,0.0,-1,-1,1);
     for(int i=0;i<numberOfNodes;i++)
     {
         NodesVec[i].blocks.push_back(genBlock);
@@ -419,20 +422,77 @@ void triggerGenerationOfBlocksAndNodes()
     }
 }
 
+void printBlockchainStructure()
+{
+
+    for(int i=0;i<numberOfNodes;i++)
+    {
+        ofstream outfile;
+        outfile.open ("blockChainOn"+to_string(i)+".py");
+        outfile<<"import networkx as nx"<<endl;
+        outfile<<"G=nx.Graph()"<<endl;
+        //DEBUG2(NodesVec[i].blocks.size());
+        for(int j=0;j<NodesVec[i].blocks.size();j++)
+        {
+            //DEBUG2(NodesVec[i].blocks[j].prevBlock);
+            if(NodesVec[i].blocks[j].prevBlock!=(-1))
+            {
+                outfile<<"G.add_edge("<<NodesVec[i].blocks[j].blockId<<","<<NodesVec[i].blocks[j].prevBlock<<")"<<endl;
+            }
+        }
+        outfile<<"nx.draw(G,with_labels = True)"<<endl;
+        outfile<<"import matplotlib.pyplot as plt"<<endl;
+        //outfile<<"plt.show()"<<endl;
+        string figureName="blockchaingraph"+to_string(i);
+        outfile<<"plt.savefig('"<<figureName<<".png')";
+        outfile.close();
+    }
+
+
+}
+
+void printNodesStructure()
+{
+    ofstream outfile;
+    outfile.open ("nodesGraph.py");
+    outfile<<"import networkx as nx"<<endl;
+    outfile<<"G=nx.Graph()"<<endl;
+    //DEBUG2(NodesVec[i].blocks.size());
+    for(int j=0;j<numberOfNodes;j++)
+    {
+        for(int i=0;i<NodesVec[j].neighbourNodes.size();i++)
+        {
+            if(j<NodesVec[j].neighbourNodes[i])
+            {
+                outfile<<"G.add_edge("<<NodesVec[j].neighbourNodes[i]<<","<<j<<")"<<endl;
+            }
+        }
+    }
+    outfile<<"nx.draw(G,with_labels = True)"<<endl;
+    outfile<<"import matplotlib.pyplot as plt"<<endl;
+    //outfile<<"plt.show()"<<endl;
+    string figureName="NodesGraph";
+    outfile<<"plt.savefig('"<<figureName<<".png')";
+    outfile.close();
+}
+
+
 int main()
 {
-    totalTimeToSimulate=0.2;
+    totalTimeToSimulate=0.5;
     numberOfNodes=10;
     z=60;
     initialMaxAmount=100;
-    globalLambdaForBlockGeneration=100;
+    globalLambdaForBlockGeneration=4000;
     globalLambdaForTransactionGeneration=1000;
-    nodeConnectivityProbability=0.5;
+    nodeConnectivityProbability=0.3;
     makePropDelayVec();
     makeNodes();
     makeConnectedGraph();
     addGenesisBlock();
     triggerGenerationOfBlocksAndNodes();
     timeLoop();
+    printNodesStructure();
+    printBlockchainStructure();
     return 0;
 }
