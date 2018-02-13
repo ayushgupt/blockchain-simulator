@@ -5,6 +5,7 @@ The root directory contains these files:
 2) makeGraph.sh : It creates python scripts which can be used for visualization purposes,It generates Blockchain at first 10 nodes.  
 3) run.sh : It is used to compile and run the file blockChainSimulator.cpp
 4) README.md : This very file.
+5) cleanFolder.sh : Cleans current folder of SVG, Python and Text Files. Required when you stop run.sh in the middle due to long execution time.  
 
 Instructions to run the simulator:
 ./run.sh &lt;outputDirectory&gt; &lt;SimulationTime&gt; &lt;NumberOfNodes&gt; &lt;percentageSlowNodes&gt; &lt;nodeConnectionProbability&gt;  
