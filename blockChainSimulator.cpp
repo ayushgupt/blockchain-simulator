@@ -446,8 +446,8 @@ void generateBlockEvent(event e)
         DEBUG2("Block Being created");
         DEBUG2(globalBlockIdCounter);
         DEBUG2(e.scheduleTime);
-        DEBUG2(e.currNode);
-        DEBUG2("Block created\n");
+        // DEBUG2(e.currNode);
+        // DEBUG2("Block created\n");
 
         NodesVec[e.currNode].mapBlockidReceivetime[globalBlockIdCounter]=e.scheduleTime;
         globalBlockIdCounter+=1;
@@ -697,7 +697,7 @@ void printBlockchainStructure()
         outfile<<"import matplotlib.pyplot as plt"<<endl;
         //outfile<<"plt.show()"<<endl;
         string figureName="blockchaingraph"+to_string(i);
-        outfile<<"plt.savefig('"<<figureName<<".png')";
+        outfile<<"plt.savefig('"<<figureName<<".svg', format='svg', dpi=1200)";
         outfile.close();
     }
 }
@@ -812,7 +812,7 @@ void printNodesStructure()
     outfile<<"import matplotlib.pyplot as plt"<<endl;
     //outfile<<"plt.show()"<<endl;
     string figureName="NodesGraph";
-    outfile<<"plt.savefig('"<<figureName<<".png')";
+    outfile<<"plt.savefig('"<<figureName<<".svg', format='svg', dpi=1200)";
     outfile.close();
 }
 
@@ -831,7 +831,7 @@ void printFinalAmountOfMoney()
 
 
 
-int main()
+int main(int argc, char** argv)
 {
     blockFile.open("blockInfoFile.txt");
     totalTimeToSimulate=1000;
@@ -839,8 +839,22 @@ int main()
     z=60;
     initialMaxAmount=100;
     globalLambdaForBlockGeneration=0.1/(4*numberOfNodes);
-    globalLambdaForTransactionGeneration=(10/numberOfNodes);
-    nodeConnectivityProbability=0.1;
+    globalLambdaForTransactionGeneration=(20/numberOfNodes);
+    nodeConnectivityProbability=0.3;
+
+    if (argc == 5)
+    {
+        totalTimeToSimulate=atof(argv[1]);
+        numberOfNodes=atoi(argv[2]);
+        z=atof(argv[3]);
+        nodeConnectivityProbability=atof(argv[4]);
+    }
+    DEBUG2(totalTimeToSimulate);
+    DEBUG2(numberOfNodes);
+    DEBUG2(z);
+    DEBUG2(nodeConnectivityProbability);
+
+
     makePropDelayVec();
     makeNodes();
     makeConnectedGraph();
