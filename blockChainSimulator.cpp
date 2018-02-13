@@ -33,7 +33,7 @@ double exponentialDistValue(double lambda)
     return log(1-randZeroOne())/((-1)*(lambda));
 }
 
-
+int godNode=-1; //for genesis and mining transaction giver Node
 double totalTimeToSimulate;
 double globalLambdaForBlockGeneration;
 double globalLambdaForTransactionGeneration;
@@ -93,6 +93,7 @@ struct block
     int createNodeId;
     int lengthInBlockchain;
     set<transaction> transactionSet;
+    map<int,double> amountMap;
     block()
     {
 
@@ -106,6 +107,10 @@ struct block
         prevBlock=prevBlockArg;
         createNodeId=createNodeIdArg;
         lengthInBlockchain=lengthInBlockchainArg;
+        for(int i=0;i<numberOfNodes;i++)
+        {
+            amountMap[i]=0;
+        }
     }
 
 };
@@ -117,7 +122,7 @@ struct node
     bool fast;
     double lambdaForBlockGeneration;
     double lambdaForTransactionGeneration;
-    float coins;
+    //float coins;
     map<int,double> mapBlockidReceivetime;
     vector<block> blocks;
     set<transaction> allTransactions;
@@ -175,7 +180,7 @@ void makeNodes()
         tempNode.fast=fastFlag;
         tempNode.lambdaForBlockGeneration=globalLambdaForBlockGeneration;
         tempNode.lambdaForTransactionGeneration=globalLambdaForTransactionGeneration;
-        tempNode.coins=initialMaxAmount*randZeroOne();
+        //tempNode.coins=initialMaxAmount*randZeroOne();
         NodesVec.push_back(tempNode);
     }
 }
@@ -251,6 +256,56 @@ double calculateLatency(int i,int j,double m)
     return propDelay[i][j]+(m/cij)+exponentialDistValue(dijLambda);
 }
 
+int getlocalIndexOfLongestLenBlock(int nodeIndex)
+{
+
+    int longestLen=0;
+    int localIndexOfLongestLenBlock;
+    int actualBlockId;
+
+    for(int i=0;i<NodesVec[nodeIndex].blocks.size();i++)
+    {
+        if(NodesVec[nodeIndex].blocks[i].lengthInBlockchain>longestLen){
+            longestLen=NodesVec[nodeIndex].blocks[i].lengthInBlockchain;
+            localIndexOfLongestLenBlock=i;
+            actualBlockId=NodesVec[nodeIndex].blocks[i].blockId;
+        }
+    }
+    double timestamp=negval;
+    for(int i=0;i<NodesVec[nodeIndex].blocks.size();i++)
+    {
+        if(NodesVec[nodeIndex].blocks[i].lengthInBlockchain==longestLen){
+            //When the 1st block with longestLen is found:
+            if(timestamp<0){
+                timestamp = NodesVec[nodeIndex].blocks[i].timeOfCreation;
+                localIndexOfLongestLenBlock=i;
+                actualBlockId=NodesVec[nodeIndex].blocks[i].blockId;
+            }
+                //When you have already found at least one block with the longestLen and found another one:
+            else{
+                if(timestamp<NodesVec[nodeIndex].blocks[i].timeOfCreation){
+                    timestamp = NodesVec[nodeIndex].blocks[i].timeOfCreation;
+                    localIndexOfLongestLenBlock=i;
+                    actualBlockId=NodesVec[nodeIndex].blocks[i].blockId;
+                }
+            }
+        }
+    }
+    return localIndexOfLongestLenBlock;
+
+}
+
+double getCoins(int hostIndex,int guestIndex)
+{
+    double currentCoins=0;
+    int currBlockIndex=getlocalIndexOfLongestLenBlock(hostIndex);
+    while(NodesVec[hostIndex].blocks[currBlockIndex].prevBlock!=(-1))
+    {
+        currentCoins+=NodesVec[hostIndex].blocks[currBlockIndex].amountMap[guestIndex];
+        currBlockIndex=NodesVec[hostIndex].blocks[currBlockIndex].localIndexOfPrevBlock;
+    }
+    return currentCoins;
+}
 
 void generateTransactionEvent(event e)
 {
@@ -261,11 +316,9 @@ void generateTransactionEvent(event e)
         receipientId=randZeroOne()*numberOfNodes;
     }
 
-    double transactionAmount=randZeroOne()*(NodesVec[senderId].coins);
+    double transactionAmount=randZeroOne()*getCoins(senderId,senderId);
     transaction newtrans(globalTransactionIdCounter,senderId,receipientId,transactionAmount);
     globalTransactionIdCounter+=1;
-    NodesVec[senderId].coins-=transactionAmount;
-    NodesVec[receipientId].coins+=transactionAmount;
     NodesVec[senderId].allTransactions.insert(newtrans);
 
     event nextTransGen(
@@ -383,6 +436,8 @@ void generateBlockEvent(event e)
         //create a new block that refers to this block
         block generatedBlock(globalBlockIdCounter,e.scheduleTime,actualBlockId,e.currNode,longestLen+1);
 
+
+
         DEBUG2("Block Being created");
         DEBUG2(globalBlockIdCounter);
         DEBUG2(e.scheduleTime);
@@ -392,6 +447,9 @@ void generateBlockEvent(event e)
         NodesVec[e.currNode].mapBlockidReceivetime[globalBlockIdCounter]=e.scheduleTime;
         globalBlockIdCounter+=1;
 
+        //Mining Fee Given
+        NodesVec[e.currNode].allTransactions.insert(transaction(globalTransactionIdCounter,godNode,e.currNode,50));
+        globalTransactionIdCounter+=1;
 
         //add all unspent transactions to this block
         set<transaction> unspentTransactions=NodesVec[e.currNode].allTransactions;
@@ -405,7 +463,36 @@ void generateBlockEvent(event e)
             }
             currBlockIndex=NodesVec[e.currNode].blocks[currBlockIndex].localIndexOfPrevBlock;
         }
-        //DEBUG2("bahar aa gaya!");
+
+        vector<double> coinValuesAtHost(numberOfNodes,0);
+        for(int i1=0;i1<numberOfNodes;i1++)
+        {
+            coinValuesAtHost[i1]=getCoins(e.currNode,i1);
+        }
+
+        for(auto txn:unspentTransactions)
+        {
+            if(txn.senderNodeId==godNode)
+            {
+                coinValuesAtHost[txn.destinationNodeId]+=txn.coins;
+            } else
+            {
+                if( txn.coins>coinValuesAtHost[txn.senderNodeId])
+                {
+
+                    //TODO: DIE
+                    unspentTransactions.erase(txn);
+                }
+                else
+                {
+                    coinValuesAtHost[txn.senderNodeId]-=txn.coins;
+                    coinValuesAtHost[txn.destinationNodeId]+=txn.coins;
+                }
+            }
+        }
+
+
+
         generatedBlock.transactionSet=unspentTransactions;
 
 //        set<transaction> initialUnspentTransaction=NodesVec[e.currNode].allTransactions;
@@ -421,8 +508,7 @@ void generateBlockEvent(event e)
 //            }
 //        }
 
-        //TODO: Add Mining Fee
-        NodesVec[e.currNode].coins+=50;
+
         //add block to my current node
         generatedBlock.localIndexOfPrevBlock=localIndexOfLongestLenBlock;
         NodesVec[e.currNode].blocks.push_back(generatedBlock);
@@ -531,7 +617,16 @@ void timeLoop()
 void addGenesisBlock()
 {
     block genBlock(0,0.0,-1,-1,1);
+
     genBlock.localIndexOfPrevBlock=-1;
+
+    for(int i=0;i<numberOfNodes;i++)
+    {
+        genBlock.transactionSet.insert(transaction(globalTransactionIdCounter,godNode,i,initialMaxAmount*randZeroOne()));
+    }
+
+    globalBlockIdCounter+=1;
+
     for(int i=0;i<numberOfNodes;i++)
     {
         NodesVec[i].blocks.push_back(genBlock);
@@ -595,6 +690,7 @@ void printBlockChainTree(){
             outfile<<"Length in BlockChain: "<<NodesVec[i].blocks[k].lengthInBlockchain<<"\n";
             outfile<<"Previous Block:       "<<NodesVec[i].blocks[k].prevBlock<<"\n";
             outfile<<"Created at:           "<<NodesVec[i].blocks[k].timeOfCreation<<"\n";
+            outfile<<"Received at:           "<<NodesVec[i].mapBlockidReceivetime[NodesVec[i].blocks[k].blockId]<<"\n";
             for(auto txn:NodesVec[i].blocks[k].transactionSet){
                 outfile<<"\tTxnID "<<txn.transactionId<<": "<<txn.senderNodeId<<" pays "<<txn.destinationNodeId<<" "<<txn.coins<<" coins"<<"\n";
             }
@@ -690,6 +786,12 @@ void printNodesStructure()
     outfile<<"plt.savefig('"<<figureName<<".png')";
     outfile.close();
 }
+
+
+
+
+
+
 
 
 int main()
