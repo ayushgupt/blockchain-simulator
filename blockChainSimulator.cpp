@@ -26,7 +26,10 @@ double randZeroOne()
 
 double exponentialDistValue(double lambda)
 {
-    //Explanation can be found from answer of Amit in link:https://stackoverflow.com/questions/11491458/how-to-generate-random-numbers-with-exponential-distribution-with-mean
+    /* Explanation can be found 
+     * from answer of Amit in link:
+     * https://stackoverflow.com/questions/11491458/how-to-generate-random-numbers-with-exponential-distribution-with-mean
+     * */
     return log(1-randZeroOne())/((-1)*(lambda));
 }
 
@@ -43,6 +46,8 @@ double globalCurrentTime=0;
 double nodeConnectivityProbability=0.5;
 double blockMValue=8000000;
 double transactionMValue=0;
+double negval = -1;
+string line_separator = "--------------------------------------------------";
 
 vector< vector<double> > propDelay;
 struct transaction
@@ -119,7 +124,13 @@ struct event
     int currNode;
     block currBlock;
     transaction currTransaction;
-    event(int eventTypeArg,double scheduleTimeArg,double createTimeArg, int senderNodeArg, int currNodeArg, block currBlockArg,transaction currTransactionArg)
+    event(int eventTypeArg,
+            double scheduleTimeArg,
+            double createTimeArg, 
+            int senderNodeArg, 
+            int currNodeArg, 
+            block currBlockArg,
+            transaction currTransactionArg)
     {
         eventType=eventTypeArg;
         scheduleTime=scheduleTimeArg;
@@ -247,7 +258,14 @@ void generateTransactionEvent(event e)
     NodesVec[receipientId].coins+=transactionAmount;
     NodesVec[senderId].unspentTransactions.insert(newtrans);
 
-    event nextTransGen(1,e.scheduleTime+exponentialDistValue(NodesVec[senderId].lambdaForTransactionGeneration),e.scheduleTime,senderId,senderId,block(),transaction());
+    event nextTransGen(
+        1,
+        e.scheduleTime+exponentialDistValue(NodesVec[senderId].lambdaForTransactionGeneration),
+        e.scheduleTime,
+        senderId,
+        senderId,
+        block(),
+        transaction());
     eventsQueue.push(nextTransGen);
 
     for(int i=0;i< NodesVec[senderId].neighbourNodes.size();i++)
@@ -308,13 +326,44 @@ void generateBlockEvent(event e)
         int longestLen=0;
         int localIndexOfLongestLenBlock;
         int actualBlockId;
+//            Ayush's logic:
+//        for(int i=0;i<NodesVec[e.currNode].blocks.size();i++)
+//        {
+//
+//            if(NodesVec[e.currNode].blocks[i].lengthInBlockchain>longestLen)
+//            {
+//                longestLen=NodesVec[e.currNode].blocks[i].lengthInBlockchain;
+//                localIndexOfLongestLenBlock=i;
+//                actualBlockId=NodesVec[e.currNode].blocks[i].blockId;
+//            }
+//            
+//        }
+        
+//            Ankit's logic:
         for(int i=0;i<NodesVec[e.currNode].blocks.size();i++)
         {
-            if(NodesVec[e.currNode].blocks[i].lengthInBlockchain>longestLen)
-            {
+            if(NodesVec[e.currNode].blocks[i].lengthInBlockchain>longestLen){
                 longestLen=NodesVec[e.currNode].blocks[i].lengthInBlockchain;
                 localIndexOfLongestLenBlock=i;
                 actualBlockId=NodesVec[e.currNode].blocks[i].blockId;
+            }
+        }
+        double timestamp=negval;
+        for(int i=0;i<NodesVec[e.currNode].blocks.size();i++)
+        {
+            if(NodesVec[e.currNode].blocks[i].lengthInBlockchain==longestLen){
+                //When the 1st block with longestLen is found:
+                if(timestamp<0){
+                    timestamp = NodesVec[e.currNode].blocks[i].timeOfCreation;
+                    actualBlockId=NodesVec[e.currNode].blocks[i].blockId;
+                }
+                //When you have already found at least one block with the longestLen and found another one:
+                else{
+                    if(timestamp<NodesVec[e.currNode].blocks[i].timeOfCreation){
+                        timestamp = NodesVec[e.currNode].blocks[i].timeOfCreation;
+                        actualBlockId=NodesVec[e.currNode].blocks[i].blockId;
+                    }
+                }
             }
         }
 
@@ -390,6 +439,7 @@ void receiveBlockEvent(event e)
         e.currBlock.lengthInBlockchain=longestLen+1;
         NodesVec[e.currNode].mapBlockidReceivetime[e.currBlock.blockId]=e.scheduleTime;
         NodesVec[e.currNode].blocks.push_back(e.currBlock);
+        
 
         for(int i=0;i<NodesVec[e.currNode].neighbourNodes.size();i++)
         {
@@ -466,7 +516,6 @@ void triggerGenerationOfBlocksAndNodes()
 
 void printBlockchainStructure()
 {
-
     for(int i=0;i<numberOfNodes;i++)
     {
         ofstream outfile;
@@ -489,10 +538,31 @@ void printBlockchainStructure()
         outfile<<"plt.savefig('"<<figureName<<".png')";
         outfile.close();
     }
-
-
 }
 
+void printBlockChainTree(){
+    for(int i=0;i<numberOfNodes;i++){
+        ofstream outfile;
+        //Keeping the extension of the files as .py because of better readability in the text editor
+        outfile.open ("blockChainTreeOf"+to_string(i)+".py");
+        outfile<<"Node#"<<i<<"\n";
+        outfile<<line_separator<<"\n";
+        outfile<<line_separator<<"\n";
+        for(int k=0; k<NodesVec[i].blocks.size();k++){
+            outfile<<"Block#"<<k<<"\n";
+            outfile<<line_separator<<"\n";
+            outfile<<"Block ID:             "<<NodesVec[i].blocks[k].blockId<<"\n";
+            outfile<<"Created by node:      "<<NodesVec[i].blocks[k].createNodeId<<"\n";
+            outfile<<"Length in BlockChain: "<<NodesVec[i].blocks[k].lengthInBlockchain<<"\n";
+            outfile<<"Previous Block:       "<<NodesVec[i].blocks[k].prevBlock<<"\n";
+            outfile<<"Created at:           "<<NodesVec[i].blocks[k].timeOfCreation<<"\n";
+            for(auto txn:NodesVec[i].blocks[k].transactionSet){
+                outfile<<"\tTxnID "<<txn.transactionId<<": "<<txn.senderNodeId<<" pays "<<txn.destinationNodeId<<" "<<txn.coins<<" coins"<<"\n";
+            }
+        }
+        outfile.close();
+    }
+}
 void printNodesStructure()
 {
     ofstream outfile;
@@ -536,5 +606,6 @@ int main()
     timeLoop();
     printNodesStructure();
     printBlockchainStructure();
+    printBlockChainTree();
     return 0;
 }
