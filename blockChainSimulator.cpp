@@ -563,6 +563,20 @@ void printBlockChainTree(){
         outfile.close();
     }
 }
+
+void printAllUnspentTransactions(){
+    for(int i=0;i<numberOfNodes;i++){
+        ofstream outfile;
+        //Keeping the extension of the files as .py because of better readability in the text editor
+        outfile.open ("UnspentTransactionsOf"+to_string(i)+".py");
+        outfile<<"Node#"<<i<<"\n";
+        outfile<<line_separator<<"\n";
+        for(auto txnSet:NodesVec[i].unspentTransactions){
+            outfile<<"\tTxnID "<<txnSet.transactionId<<": "<<txnSet.senderNodeId<<" pays "<<txnSet.destinationNodeId<<" "<<txnSet.coins<<" coins"<<"\n";
+        }
+        outfile.close();
+    }
+}
 void printNodesStructure()
 {
     ofstream outfile;
@@ -591,7 +605,7 @@ void printNodesStructure()
 
 int main()
 {
-    totalTimeToSimulate=1000;
+    totalTimeToSimulate=100;
     numberOfNodes=10;
     z=60;
     initialMaxAmount=100;
@@ -607,5 +621,6 @@ int main()
     printNodesStructure();
     printBlockchainStructure();
     printBlockChainTree();
+    printAllUnspentTransactions();
     return 0;
 }
