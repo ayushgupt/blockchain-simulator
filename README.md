@@ -15,3 +15,6 @@ Instructions to run python scripts:
 2) Give executable permission to makeGraph.sh if not given already, i.e. run chmod +x makeGraph.sh
 3) Type ./makeGraph.sh
 4) Check the root directory for the newly created/updated image files.
+
+Instructions to clear the root directory:
+1) Type 'make clean' in the terminal
