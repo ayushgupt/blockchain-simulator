@@ -49,6 +49,11 @@ double transactionMValue=0;
 double negval = -1;
 string line_separator = "--------------------------------------------------";
 
+ofstream blockFile;
+ofstream initialMoneyFile;
+ofstream finalMoneyFile;
+
+
 vector< vector<double> > propDelay;
 struct transaction
 {
@@ -299,7 +304,7 @@ double getCoins(int hostIndex,int guestIndex)
 {
     double currentCoins=0;
     int currBlockIndex=getlocalIndexOfLongestLenBlock(hostIndex);
-    while(NodesVec[hostIndex].blocks[currBlockIndex].prevBlock!=(-1))
+    while(currBlockIndex!=(-1))
     {
         currentCoins+=NodesVec[hostIndex].blocks[currBlockIndex].amountMap[guestIndex];
         currBlockIndex=NodesVec[hostIndex].blocks[currBlockIndex].localIndexOfPrevBlock;
@@ -475,6 +480,7 @@ void generateBlockEvent(event e)
             if(txn.senderNodeId==godNode)
             {
                 coinValuesAtHost[txn.destinationNodeId]+=txn.coins;
+                generatedBlock.amountMap[txn.destinationNodeId]+=txn.coins;
             } else
             {
                 if( txn.coins>coinValuesAtHost[txn.senderNodeId])
@@ -487,6 +493,8 @@ void generateBlockEvent(event e)
                 {
                     coinValuesAtHost[txn.senderNodeId]-=txn.coins;
                     coinValuesAtHost[txn.destinationNodeId]+=txn.coins;
+                    generatedBlock.amountMap[txn.senderNodeId]-=txn.coins;
+                    generatedBlock.amountMap[txn.destinationNodeId]+=txn.coins;
                 }
             }
         }
@@ -508,6 +516,13 @@ void generateBlockEvent(event e)
 //            }
 //        }
 
+        blockFile<<line_separator<<endl;
+        blockFile<<"BlockId="<<generatedBlock.blockId<<endl;
+        blockFile<<"CreatedByNode="<<generatedBlock.createNodeId<<endl;
+        blockFile<<"TimeCreated="<<generatedBlock.timeOfCreation<<endl;
+        blockFile<<"NumberOfTransactions="<<generatedBlock.transactionSet.size()<<endl;
+        blockFile<<"PrevBlockId="<<generatedBlock.prevBlock<<endl;
+        blockFile<<line_separator<<endl;
 
         //add block to my current node
         generatedBlock.localIndexOfPrevBlock=localIndexOfLongestLenBlock;
@@ -620,12 +635,25 @@ void addGenesisBlock()
 
     genBlock.localIndexOfPrevBlock=-1;
 
+    initialMoneyFile.open("initialMoney.txt");
     for(int i=0;i<numberOfNodes;i++)
     {
-        genBlock.transactionSet.insert(transaction(globalTransactionIdCounter,godNode,i,initialMaxAmount*randZeroOne()));
+        double randAmou=initialMaxAmount*randZeroOne();
+        initialMoneyFile<<"Amount with Node "<<i<<" was "<<randAmou<<endl;
+        genBlock.transactionSet.insert(transaction(globalTransactionIdCounter,godNode,i,randAmou));
+        genBlock.amountMap[i]+=randAmou;
+        globalTransactionIdCounter+=1;
     }
+    initialMoneyFile.close();
 
-    globalBlockIdCounter+=1;
+    //globalBlockIdCounter+=1;
+    blockFile<<line_separator<<endl;
+    blockFile<<"BlockId="<<genBlock.blockId<<endl;
+    blockFile<<"CreatedByNode="<<genBlock.createNodeId<<endl;
+    blockFile<<"TimeCreated="<<genBlock.timeOfCreation<<endl;
+    blockFile<<"NumberOfTransactions="<<genBlock.transactionSet.size()<<endl;
+    blockFile<<"PrevBlockId="<<genBlock.prevBlock<<endl;
+    blockFile<<line_separator<<endl;
 
     for(int i=0;i<numberOfNodes;i++)
     {
@@ -699,7 +727,8 @@ void printBlockChainTree(){
     }
 }
 
-void printAllUnspentTransactions(){
+void printAllUnspentTransactions()
+{
     for(int abc=0;abc<numberOfNodes;abc++)
     {
 
@@ -788,7 +817,15 @@ void printNodesStructure()
 }
 
 
-
+void printFinalAmountOfMoney()
+{
+    finalMoneyFile.open("FinalMoney.txt");
+    for(int i=0;i<numberOfNodes;i++)
+    {
+        finalMoneyFile<<"Amount with Node "<<i<<" is Finally "<<getCoins(i,i)<<endl;
+    }
+    finalMoneyFile.close();
+}
 
 
 
@@ -796,6 +833,7 @@ void printNodesStructure()
 
 int main()
 {
+    blockFile.open("blockInfoFile.txt");
     totalTimeToSimulate=1000;
     numberOfNodes=10;
     z=60;
@@ -813,5 +851,7 @@ int main()
     printBlockchainStructure();
     printBlockChainTree();
     printAllUnspentTransactions();
+    printFinalAmountOfMoney();
+    blockFile.close();
     return 0;
 }
