@@ -1,5 +1,5 @@
-## blockchain-simulator
-# COL867: Assignment 1
+# blockchain-simulator
+## COL867: Assignment 1
 The root directory contains these files:
 1) blockChainSimulator.cpp : It contains the blockchain simulator code.
 2) makeGraph.sh : It creates python scripts which can be used for visualization purposes.
