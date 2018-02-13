@@ -18,3 +18,9 @@ Parameters:
 5. nodeConnectionProbability: Probability of making any edge in the Network. Its value should be between 0 and 1  
 
 OutputFiles:
+1) SVG Files: Pictures of Node Structure and Blockchain structure on first 10 nodes.  
+2) blockChainTreeOf<index>.py: Shows Blockchain and Other details of blocks inside each node.  
+3) blockInfoFile.txt: Shows Info of generated blocks during full simulation.  
+4) initialMoney.txt: Shows Coins with each Node initially.  
+5) FinalMoney.txt: Shows Coins with each Node after end of Simulation.  
+6) UnspentTransactionsOf<index>.py: Shows Transactions at each node which are not in longest chain at end of simulation.  
