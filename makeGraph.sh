@@ -1,0 +1,11 @@
+python nodesGraph.py
+python blockChainOn0.py
+python blockChainOn1.py
+python blockChainOn2.py
+python blockChainOn3.py
+python blockChainOn4.py
+python blockChainOn5.py
+python blockChainOn6.py
+python blockChainOn7.py
+python blockChainOn8.py
+python blockChainOn9.py
